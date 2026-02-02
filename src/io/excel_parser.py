@@ -9,51 +9,34 @@ class ExcelParser:
     def get_project_metadata(self):
         """
         Scans the Excel for the Wage and Monthly Cap.
-        Pattern: Look for 'ΩΡΟΜ.', value to right is Wage, value above that is Cap.
-        Also looks for 'ΠΛΑΦΟΝ'.
         """
         df = pd.read_excel(self.stream)
-        wage = 15.33 # Fallback
-        cap = 4500.0 # Fallback
+        wage = 15.33 
+        cap = 4500.0 
         
         try:
-            # Flatten search: look for keywords anywhere in the first 10 columns
             for r in range(len(df)):
-                for c in range(min(10, len(df.columns))):
+                for c in range(min(15, len(df.columns))):
                     cell_val = str(df.iloc[r, c]).upper()
                     
-                    # 1. Look for Wage (ΩΡΟΜ)
                     if 'ΩΡΟΜ' in cell_val or 'OROM' in cell_val:
-                        for offset in range(1, 4): # Check next 3 columns
+                        # 1. Find Wage
+                        for offset in range(1, 4):
                             if c + offset < len(df.columns):
                                 val = df.iloc[r, c+offset]
                                 if pd.notna(val) and isinstance(val, (int, float)) and val > 0:
                                     wage = float(val)
                                     logger.info(f"Wage found: {wage}")
-                                    break
-                    
-                    # 2. Look for Cap (ΠΛΑΦΟΝ)
-                    if 'ΠΛΑΦΟΝ' in cell_val or 'PLAFON' in cell_val or 'ΠΟΣΟ' in cell_val:
-                        for offset in range(1, 4):
-                            if c + offset < len(df.columns):
-                                val = df.iloc[r, c+offset]
-                                if pd.notna(val) and isinstance(val, (int, float)) and val > 1000:
-                                    cap = float(val)
-                                    logger.info(f"Cap found: {cap}")
-                                    break
-            
-            # Heuristic: if cap not found by label, look above the wage
-            if cap == 4500.0: # If still default
-                # Re-scan for wage to check cell above
-                for r in range(len(df)):
-                    for c in range(min(10, len(df.columns))):
-                        if wage == df.iloc[r, c]:
-                            if r - 1 >= 0:
-                                val_above = df.iloc[r-1, c]
-                                if pd.notna(val_above) and isinstance(val_above, (int, float)) and val_above > 1000:
-                                    cap = float(val_above)
-                                    logger.info(f"Cap found above wage: {cap}")
-                                    break
+                                    
+                                    # 2. Find Cap (The largest number in the row above)
+                                    if r - 1 >= 0:
+                                        # Look at the whole row above near the wage column
+                                        row_above = df.iloc[r-1, max(0, c-2):min(len(df.columns), c+5)]
+                                        nums = [float(v) for v in row_above if pd.notna(v) and isinstance(v, (int, float)) and v > 1000]
+                                        if nums:
+                                            cap = max(nums) # Pick the highest (e.g. 4500 over 2200)
+                                            logger.info(f"Cap found in row above: {cap}")
+                        break
         except Exception as e:
             logger.warning(f"Metadata scan failed: {e}")
             
@@ -74,6 +57,7 @@ class ExcelParser:
                 for col_idx in range(min(5, len(df.columns))):
                     cell_val = str(df.iloc[row_idx, col_idx]).upper()
                     if re.search(label_pattern, cell_val):
+                        # Find name row after label
                         for offset in range(1, 10):
                             if row_idx + offset < len(df):
                                 val = df.at[row_idx + offset, target_col]
