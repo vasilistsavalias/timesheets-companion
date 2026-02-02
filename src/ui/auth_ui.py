@@ -3,7 +3,7 @@ from src.services.auth_service import AuthService
 from src.database.manager import get_db_session
 
 def render_login():
-    st.title("🔐 ELKE Portal Login")
+    st.title("🔐 timesheets-companion")
     
     with st.form("login_form"):
         username = st.text_input("Username")

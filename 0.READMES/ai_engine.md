@@ -18,7 +18,7 @@ To prevent "hallucinations" in critical financial data, we do **not** use the AI
 *   **Mathematical Rules:** 
     *   Targets are extracted from Niki's budget Excel.
     *   Hours are distributed using a greedy algorithm targeting 7.0h blocks.
-    *   Compliance check: Skips weekends and Greek holidays programmatically using the `holidays` library and hardcoded ELKE rules.
+    *   Compliance check: Skips weekends and Greek holidays programmatically using the `holidays` library and hardcoded timesheets-companion rules.
 
 ## 4. Model Pool (Failover)
 To ensure high availability, the application maintains a pool of free models. If the primary model (e.g., Llama 3.3) is unavailable, the system automatically fails over to alternatives like DeepSeek R1 or GPT-OSS.

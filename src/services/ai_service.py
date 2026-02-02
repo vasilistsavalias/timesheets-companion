@@ -17,8 +17,8 @@ class OpenRouterService:
                 model=self.model,
                 messages=messages,
                 headers={
-                    "HTTP-Referer": "https://github.com/elke-assistant",
-                    "X-Title": "ELKE Assistant"
+                    "HTTP-Referer": "https://github.com/timesheets-companion-assistant",
+                    "X-Title": "timesheets-companion Assistant"
                 },
                 temperature=temperature
             )

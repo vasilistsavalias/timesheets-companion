@@ -47,7 +47,7 @@ def render_timesheet_tool():
                     del st.session_state[k]
             st.rerun()
 
-    st.title("🤖 ELKE Timesheet Assistant")
+    st.title("🤖 timesheets-companion")
     st.caption(f"Logged in as: **{st.session_state.get('name', 'User')}**")
 
     # --- PHASE 1: INITIALIZATION ---

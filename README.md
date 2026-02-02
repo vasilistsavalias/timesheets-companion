@@ -1,6 +1,6 @@
 # timesheets-companion - Modular Timesheet Automation
 
-**timesheets-companion** is a professional, secure, and modular Streamlit application designed to automate monthly research timesheets for ELKE projects. It leverages AI reasoning (via OpenRouter) and strict programmatic logic to ensure 100% financial and rule compliance.
+**timesheets-companion** is a professional, secure, and modular Streamlit application designed to automate monthly research timesheets for timesheets-companion projects. It leverages AI reasoning (via OpenRouter) and strict programmatic logic to ensure 100% financial and rule compliance.
 
 ## 🚀 Key Features
 

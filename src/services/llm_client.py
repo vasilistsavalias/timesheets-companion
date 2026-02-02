@@ -28,8 +28,8 @@ class OpenRouterClient:
                     messages=messages,
                     # FIX: Use extra_headers instead of headers
                     extra_headers={
-                        "HTTP-Referer": "https://github.com/elke-assistant",
-                        "X-Title": "ELKE Assistant"
+                        "HTTP-Referer": "https://github.com/timesheets-companion-assistant",
+                        "X-Title": "timesheets-companion Assistant"
                     },
                     timeout=45
                 )
