@@ -10,39 +10,57 @@ class ExcelParser:
         """
         Scans the Excel for the Wage and Monthly Cap.
         Pattern: Look for 'ΩΡΟΜ.', value to right is Wage, value above that is Cap.
+        Also looks for 'ΠΛΑΦΟΝ'.
         """
         df = pd.read_excel(self.stream)
-        # We need the raw grid, not just headers
-        
-        wage = 15.33 # Default fallback
-        cap = 4500.0 # Default fallback
+        wage = 15.33 # Fallback
+        cap = 4500.0 # Fallback
         
         try:
+            # Flatten search: look for keywords anywhere in the first 10 columns
             for r in range(len(df)):
-                for c in range(len(df.columns)):
+                for c in range(min(10, len(df.columns))):
                     cell_val = str(df.iloc[r, c]).upper()
+                    
+                    # 1. Look for Wage (ΩΡΟΜ)
                     if 'ΩΡΟΜ' in cell_val or 'OROM' in cell_val:
-                        # Wage is usually the next column
-                        if c + 1 < len(df.columns):
-                            found_wage = df.iloc[r, c+1]
-                            if pd.notna(found_wage) and isinstance(found_wage, (int, float)):
-                                wage = float(found_wage)
-                                logger.info(f"Dynamic Wage found: {wage}")
-                                
-                                # Cap is usually directly above the wage
-                                if r - 1 >= 0:
-                                    found_cap = df.iloc[r-1, c+1]
-                                    if pd.notna(found_cap) and isinstance(found_cap, (int, float)):
-                                        cap = float(found_cap)
-                                        logger.info(f"Dynamic Cap found: {cap}")
-                        break
+                        for offset in range(1, 4): # Check next 3 columns
+                            if c + offset < len(df.columns):
+                                val = df.iloc[r, c+offset]
+                                if pd.notna(val) and isinstance(val, (int, float)) and val > 0:
+                                    wage = float(val)
+                                    logger.info(f"Wage found: {wage}")
+                                    break
+                    
+                    # 2. Look for Cap (ΠΛΑΦΟΝ)
+                    if 'ΠΛΑΦΟΝ' in cell_val or 'PLAFON' in cell_val or 'ΠΟΣΟ' in cell_val:
+                        for offset in range(1, 4):
+                            if c + offset < len(df.columns):
+                                val = df.iloc[r, c+offset]
+                                if pd.notna(val) and isinstance(val, (int, float)) and val > 1000:
+                                    cap = float(val)
+                                    logger.info(f"Cap found: {cap}")
+                                    break
+            
+            # Heuristic: if cap not found by label, look above the wage
+            if cap == 4500.0: # If still default
+                # Re-scan for wage to check cell above
+                for r in range(len(df)):
+                    for c in range(min(10, len(df.columns))):
+                        if wage == df.iloc[r, c]:
+                            if r - 1 >= 0:
+                                val_above = df.iloc[r-1, c]
+                                if pd.notna(val_above) and isinstance(val_above, (int, float)) and val_above > 1000:
+                                    cap = float(val_above)
+                                    logger.info(f"Cap found above wage: {cap}")
+                                    break
         except Exception as e:
-            logger.warning(f"Metadata scan failed: {e}. Using defaults.")
+            logger.warning(f"Metadata scan failed: {e}")
             
         return {"wage": wage, "cap": cap}
 
     def get_monthly_targets(self, month_column_name='JANUARY'):
-        self.stream.seek(0) # Reset stream for second read
+        self.stream.seek(0)
         df = pd.read_excel(self.stream)
         df.columns = [str(c).strip().upper() for c in df.columns]
         
@@ -56,13 +74,11 @@ class ExcelParser:
                 for col_idx in range(min(5, len(df.columns))):
                     cell_val = str(df.iloc[row_idx, col_idx]).upper()
                     if re.search(label_pattern, cell_val):
-                        # Look for name or numeric value in target_col
                         for offset in range(1, 10):
                             if row_idx + offset < len(df):
                                 val = df.at[row_idx + offset, target_col]
                                 try:
                                     num = float(val)
-                                    # Skip years and large numbers
                                     if not pd.isna(num) and 0 < num < 2000:
                                         return num
                                 except:

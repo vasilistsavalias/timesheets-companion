@@ -99,13 +99,17 @@ def render_timesheet_tool():
                     })
                     
                     summary_prompt = (
-                        f"DATA LOADED:\n"
+                        f"### SOURCE OF TRUTH (USE THESE NUMBERS):\n"
                         f"- Month: {ui_meta['month_str']}\n"
-                        f"- Dynamic Wage (from Excel): {real_wage}€/h\n"
-                        f"- Dynamic Cap (from Excel): {real_cap}€\n"
-                        f"- Targets: {json.dumps(raw_ee_targets, ensure_ascii=False)}\n"
-                        f"- Deliverables: {list(final_targets.keys())}\n"
-                        f"INSTRUCTION: Summarize the split and mention the Dynamic Wage and Cap from the excel. Ask for YES to generate."
+                        f"- Hourly Wage: {real_wage}€/h\n"
+                        f"- Monthly Budget Cap: {real_cap}€\n"
+                        f"- Budget Targets per Package (from Excel): {json.dumps(raw_ee_targets, ensure_ascii=False)}\n"
+                        f"- Project Structure: {json.dumps(hierarchy, ensure_ascii=False)}\n\n"
+                        f"INSTRUCTION:\n"
+                        f"1. Summarize: 'Okay, so we have [X] packages and [Y] sub-deliverables.'\n"
+                        f"2. Explicitly state the Hourly Wage ({real_wage}€) and the Monthly Cap ({real_cap}€).\n"
+                        f"3. State the split logic (e.g., 'I will split the 800€ for EE4 into 400€ each for Π4.1 and Π4.2').\n"
+                        f"4. Ask for a YES to proceed with generating the 7h sequential blocks."
                     )
                     
                     client = OpenRouterClient(api_key)
