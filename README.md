@@ -53,7 +53,7 @@ python scripts/manage_users.py add admin yourpassword --admin --name "Administra
 ### 4. Run Application
 
 ```bash
-python run.py
+python streamlit_app.py
 ```
 
 ## 🧪 Testing
