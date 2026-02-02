@@ -8,4 +8,4 @@ python-dotenv>=1.0.0
 loguru>=0.7.0
 bcrypt>=4.0.0
 pdfplumber>=0.10.0
-alembic>=1.13.0
+alembic>=1.13.0holidays>=0.30
