@@ -49,6 +49,16 @@ def delete_user(username):
     else:
         print(f"Not Found: {username}")
 
+def change_password(username, new_password):
+    db = get_db()
+    user = db.query(User).filter(User.username == username).first()
+    if user:
+        user.password_hash = AuthService.hash_password(new_password)
+        db.commit()
+        print(f"Password updated for {username}")
+    else:
+        print(f"User {username} not found")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command")
@@ -67,6 +77,11 @@ if __name__ == "__main__":
     dele = subparsers.add_parser("delete")
     dele.add_argument("username")
 
+    # Passwd
+    pw = subparsers.add_parser("passwd")
+    pw.add_argument("username")
+    pw.add_argument("password")
+
     args = parser.parse_args()
 
     if args.command == "list":
@@ -75,3 +90,5 @@ if __name__ == "__main__":
         add_user(args.username, args.password, args.name, args.admin)
     elif args.command == "delete":
         delete_user(args.username)
+    elif args.command == "passwd":
+        change_password(args.username, args.password)

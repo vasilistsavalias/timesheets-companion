@@ -1,13 +1,17 @@
 import streamlit as st
-from src.db import get_db
-from src.auth import hash_password, get_user_by_username
+from src.database.manager import get_db_session
+from src.services.auth_service import AuthService
+from src.database.models import User
 
 def render_profile_page():
     st.title("👤 My Profile")
     
+    user = st.session_state.auth_user
+    
     st.markdown(f"""
-    **Username:** {st.session_state.username}  
-    **Role:** {'Admin' if st.session_state.get('is_admin') else 'User'}
+    **Username:** {user.username}  
+    **Name:** {user.name or 'N/A'}
+    **Role:** {'Admin' if getattr(user, 'is_admin', False) else 'User'}
     """)
     
     st.divider()
@@ -24,10 +28,11 @@ def render_profile_page():
             elif len(new_pass) < 4:
                 st.error("Password too short.")
             else:
-                db = next(get_db())
-                user = get_user_by_username(db, st.session_state.username)
-                if user:
-                    user.password_hash = hash_password(new_pass)
+                db = get_db_session()
+                # Refresh user from DB to be safe
+                db_user = db.query(User).filter(User.username == user.username).first()
+                if db_user:
+                    db_user.password_hash = AuthService.hash_password(new_pass)
                     db.commit()
                     st.success("Password updated successfully!")
                 else:

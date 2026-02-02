@@ -16,7 +16,7 @@ We outsource complex semantic understanding to high-performance open-source mode
 To prevent "hallucinations" in critical financial data, we do **not** use the AI for mathematical calculations.
 *   **Mechanism:** Once the structure is confirmed, a hardcoded Python engine takes over.
 *   **Mathematical Rules:** 
-    *   Targets are extracted from Niki's budget Excel.
+    *   Targets are extracted from the budget budget Excel.
     *   Hours are distributed using a greedy algorithm targeting 7.0h blocks.
     *   Compliance check: Skips weekends and Greek holidays programmatically using the `holidays` library and hardcoded timesheets-companion rules.
 

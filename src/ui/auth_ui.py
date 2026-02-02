@@ -15,13 +15,38 @@ def render_login():
             user = AuthService.authenticate(db, username, password)
             if user:
                 st.session_state.auth_user = user
+                # Initialize navigation state
+                if "current_page" not in st.session_state:
+                    st.session_state.current_page = "dashboard"
                 st.rerun()
             else:
                 st.error("Invalid credentials.")
 
 def render_sidebar():
     with st.sidebar:
-        st.write(f"Logged in as: **{st.session_state.auth_user.name}**")
+        user = st.session_state.auth_user
+        st.write(f"Welcome, **{user.name or user.username}**!")
+        
         if st.button("Logout"):
             del st.session_state.auth_user
+            if "current_page" in st.session_state:
+                del st.session_state.current_page
             st.rerun()
+            
+        st.markdown("---")
+        st.subheader("Go to")
+        
+        # Navigation Buttons
+        if st.button("📊 Dashboard", use_container_width=True):
+            st.session_state.current_page = "dashboard"
+            st.rerun()
+            
+        if st.button("👤 My Profile", use_container_width=True):
+            st.session_state.current_page = "profile"
+            st.rerun()
+            
+        # Admin Only Link
+        if getattr(user, 'is_admin', False):
+            if st.button("👥 User Management", use_container_width=True):
+                st.session_state.current_page = "admin"
+                st.rerun()

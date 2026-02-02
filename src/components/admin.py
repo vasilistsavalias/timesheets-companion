@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-from src.db import get_db
-from src.models import User
-from src.auth import create_user
+from src.database.manager import get_db_session
+from src.database.models import User
+from src.services.auth_service import AuthService
 
 def render_admin_page():
     st.title("👥 User Management (Admin Console)")
@@ -10,14 +10,14 @@ def render_admin_page():
     
     tab1, tab2 = st.tabs(["Manage Users", "Add New User"])
     
-    db = next(get_db())
+    db = get_db_session()
     
     # --- TAB 1: LIST & EDIT ---
     with tab1:
         users = db.query(User).all()
         
         # Display Table
-        data = [{"ID": u.id, "Username": u.username, "Role": "admin" if u.is_admin else "user", "Created At": u.created_at} for u in users]
+        data = [{"ID": u.id, "Username": u.username, "Name": u.name, "Role": "admin" if u.is_admin else "user", "Created At": u.created_at} for u in users]
         st.dataframe(pd.DataFrame(data), use_container_width=True)
         
         st.divider()
@@ -45,7 +45,7 @@ def render_admin_page():
             with col2:
                 st.write("**Danger Zone**")
                 if st.button("🗑️ Delete User", type="primary"):
-                    if selected_username == st.session_state.username:
+                    if selected_username == st.session_state.auth_user.username:
                         st.error("You cannot delete yourself!")
                     else:
                         db.delete(selected_user)
@@ -57,6 +57,7 @@ def render_admin_page():
     with tab2:
         with st.form("add_user"):
             new_user = st.text_input("Username")
+            new_name = st.text_input("Full Name")
             new_pass = st.text_input("Password", type="password")
             is_admin = st.checkbox("Grant Admin Privileges")
             if st.form_submit_button("Create User"):
@@ -67,6 +68,6 @@ def render_admin_page():
                     if existing:
                         st.error("User already exists.")
                     else:
-                        create_user(db, new_user, new_pass, is_admin=is_admin)
+                        AuthService.create_user(db, new_user, new_pass, name=new_name, is_admin=is_admin)
                         st.success(f"User {new_user} created!")
                         st.rerun()

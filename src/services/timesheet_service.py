@@ -24,7 +24,7 @@ class TimesheetService:
         
         # 2. Updated Original Stream
         original_stream = io.BytesIO(original_excel_bytes)
-        updated_stream = exporter.update_niki_excel_stream(
+        updated_stream = exporter.update_budget_excel_stream(
             original_stream, 
             month_name, 
             ee_totals,

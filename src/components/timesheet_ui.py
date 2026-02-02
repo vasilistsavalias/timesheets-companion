@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import json
+import re
 from src.services.llm_client import OpenRouterClient
 from src.services.context_loader import ContextLoader
 from src.io.excel_parser import ExcelParser
@@ -7,9 +9,7 @@ from src.io.exporter import GreekExcelExporter
 from src.io.scraper import WebrescomScraper
 from src.core.engine import TimesheetEngine
 import os
-import json
 import io
-import re
 from loguru import logger
 
 def render_timesheet_tool():
@@ -37,39 +37,40 @@ def render_timesheet_tool():
             loader = ContextLoader()
             st.session_state.system_prompt = loader.get_system_prompt()
 
-    # --- SIDEBAR ---
-    with st.sidebar:
-        st.header("📂 Project Files")
-        uploaded_file = st.file_uploader("1. Upload Niki's Excel", type=['xlsx'])
-        if st.button("🔄 Reset Tool"):
-            for k in list(st.session_state.keys()):
-                if k not in ["authentication_status", "username", "name", "logout", "system_prompt"]:
-                    del st.session_state[k]
-            st.rerun()
+    # --- SIDEBAR INPUTS (in main sidebar rendered by render_sidebar) ---
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📂 Project Files")
+    uploaded_file = st.sidebar.file_uploader("1. Upload Budget Excel", type=['xlsx'])
+    
+    if st.sidebar.button("🔄 Reset Tool"):
+        for k in list(st.session_state.keys()):
+            if k not in ["authentication_status", "auth_user", "current_page", "system_prompt"]:
+                del st.session_state[k]
+        st.rerun()
 
-    st.title("🤖 timesheets-companion")
-    st.caption(f"Logged in as: **{st.session_state.get('name', 'User')}**")
+    st.title("📊 Timesheet Dashboard")
+    user = st.session_state.auth_user
+    st.caption(f"Logged in as: **{user.name or user.username}**")
 
     # --- PHASE 1: INITIALIZATION ---
     if not st.session_state.get("setup_ready"):
         st.info("Paste the entire Webrescom page content below to begin.")
-        ui_paste = st.text_area("Webrescom Content", height=200)
+        ui_paste = st.text_area("Webrescom Content", height=250)
         
         if st.button("🚀 Analyze & Initialize") and uploaded_file and ui_paste:
             with st.spinner("Analyzing inputs..."):
                 try:
                     # Load Excel into Memory
                     excel_bytes = uploaded_file.getvalue()
-                    temp_path = os.path.join("data", "temp_upload.xlsx") # Temp file for parser compat
-                    with open(temp_path, "wb") as f: f.write(excel_bytes)
                     
-                    # Scrape
+                    # Scrape UI
                     scraper = WebrescomScraper(ui_paste)
                     hierarchy, descriptions = scraper.scrape_structure()
                     meta = scraper.get_project_metadata()
                     
-                    # Parse Targets
-                    parser = ExcelParser(temp_path)
+                    # Parse Excel (Stream)
+                    excel_stream = io.BytesIO(excel_bytes)
+                    parser = ExcelParser(excel_stream)
                     raw_ee_targets = parser.get_monthly_targets(meta['month_english'])
                     
                     # Logic
@@ -91,13 +92,10 @@ def render_timesheet_tool():
                         "ee_totals": ee_totals, "setup_ready": True
                     })
                     
-                    # Cleanup Temp
-                    if os.path.exists(temp_path): os.remove(temp_path)
-                    
                     summary_prompt = (
                         f"DATA LOADED:\n- Month: {meta['month_str']}\n- Targets: {json.dumps(raw_ee_targets, ensure_ascii=False)}\n"
                         f"- Deliverables: {list(final_targets.keys())}\n"
-                        f"INSTRUCTION: Summarize and ask for YES to generate."
+                        f"INSTRUCTION: Summarize the split and ask for YES to generate."
                     )
                     
                     client = OpenRouterClient(api_key)
@@ -110,7 +108,7 @@ def render_timesheet_tool():
                     st.error(f"Setup Error: {e}")
                     logger.error(e)
 
-    # --- PHASE 2: GENERATION ---
+    # --- PHASE 2: CHAT & GENERATION ---
     if st.session_state.get("setup_ready"):
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]): st.markdown(msg["content"])
@@ -134,21 +132,21 @@ def render_timesheet_tool():
                                 entry['Date'] = entry['Date'].strftime('%d/%m/%Y')
 
                             # Use Exporter
-                            exporter = GreekExcelExporter(schedule) # No output_dir needed for streams
+                            exporter = GreekExcelExporter(schedule)
                             
                             # 1. Detailed Log Stream
                             detailed_stream = exporter.export_excel_stream()
                             
                             # 2. Updated Original Stream
                             original_stream = io.BytesIO(st.session_state.excel_bytes)
-                            updated_stream = exporter.update_niki_excel_stream(
+                            updated_stream = exporter.update_budget_excel_stream(
                                 original_stream, 
                                 meta['month_english'], 
                                 st.session_state.ee_totals,
                                 schedule
                             )
                             
-                            st.success("✨ **Files Generated!** (Zero-Disk Persistence)")
+                            st.success("✨ **Files Generated!** (In-Memory)")
                             
                             col1, col2 = st.columns(2)
                             with col1:

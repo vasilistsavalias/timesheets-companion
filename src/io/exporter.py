@@ -30,14 +30,14 @@ class GreekExcelExporter:
 
         return output.getvalue()
 
-    def update_niki_excel_stream(self, niki_file_stream, month_name, ee_totals, detailed_schedule):
+    def update_budget_excel_stream(self, budget_file_stream, month_name, ee_totals, detailed_schedule):
         """
-        Updates Niki's original Excel in-memory.
-        niki_file_stream: a file-like object from st.file_uploader
+        Updates budget's original Excel in-memory.
+        budget_file_stream: a file-like object from st.file_uploader
         """
         output = io.BytesIO()
         # Load from stream
-        wb = load_workbook(niki_file_stream)
+        wb = load_workbook(budget_file_stream)
         ws = wb.active
         
         # 1. Update Summary Column
