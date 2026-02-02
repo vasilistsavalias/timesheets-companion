@@ -1,0 +1,36 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+.pytest_cache/
+
+# Environment & Secrets
+.env
+.streamlit/secrets.toml
+
+# Data & Outputs
+data/
+outputs/
+inputs/
+logs/
+*.log
+app.log
+*.db
+*.xlsx
+*.csv
+
+# Project Specific Documentation (Private)
+docs/webrescom/
+docs/screenshots/
+Gemini.md
+conductor/
+memory/
+opinions/
+hop_on_readmes/
+.gemini-clipboard/
+
+# IDE
+.vscode/
+.idea/
