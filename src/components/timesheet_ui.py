@@ -37,7 +37,7 @@ def render_timesheet_tool():
             loader = ContextLoader()
             st.session_state.system_prompt = loader.get_system_prompt()
 
-    # --- SIDEBAR INPUTS (in main sidebar rendered by render_sidebar) ---
+    # --- SIDEBAR INPUTS ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("📂 Project Files")
     uploaded_file = st.sidebar.file_uploader("1. Upload Budget Excel", type=['xlsx'])
@@ -55,25 +55,30 @@ def render_timesheet_tool():
     # --- PHASE 1: INITIALIZATION ---
     if not st.session_state.get("setup_ready"):
         st.info("Paste the entire Webrescom page content below to begin.")
-        ui_paste = st.text_area("Webrescom Content", height=250)
+        ui_paste = st.text_area("Webrescom Content", height=200)
         
         if st.button("🚀 Analyze & Initialize") and uploaded_file and ui_paste:
             with st.spinner("Analyzing inputs..."):
                 try:
-                    # Load Excel into Memory
-                    excel_bytes = uploaded_file.getvalue()
-                    
-                    # Scrape UI
+                    # 1. Scrape UI
                     scraper = WebrescomScraper(ui_paste)
                     hierarchy, descriptions = scraper.scrape_structure()
-                    meta = scraper.get_project_metadata()
+                    ui_meta = scraper.get_project_metadata()
                     
-                    # Parse Excel (Stream)
+                    # 2. Parse Excel (Stream)
+                    excel_bytes = uploaded_file.getvalue()
                     excel_stream = io.BytesIO(excel_bytes)
                     parser = ExcelParser(excel_stream)
-                    raw_ee_targets = parser.get_monthly_targets(meta['month_english'])
                     
-                    # Logic
+                    # DYNAMIC METADATA EXTRACTION
+                    financial_meta = parser.get_project_metadata()
+                    real_wage = financial_meta['wage']
+                    real_cap = financial_meta['cap']
+                    
+                    # 3. Parse Monthly Targets
+                    raw_ee_targets = parser.get_monthly_targets(ui_meta['month_english'])
+                    
+                    # 4. Logic Calculation
                     final_targets = {}
                     ee_totals = {}
                     for ee, money in raw_ee_targets.items():
@@ -82,20 +87,25 @@ def render_timesheet_tool():
                         if match:
                             delivs = hierarchy[match]
                             money_per = money / len(delivs)
-                            ee_totals[match] = round((money / meta['wage']) * 2) / 2
+                            ee_totals[match] = round((money / real_wage) * 2) / 2
                             for d in delivs: final_targets[d] = money_per
 
                     st.session_state.update({
                         "excel_bytes": excel_bytes, "excel_name": uploaded_file.name,
                         "hierarchy": hierarchy, "descriptions": descriptions,
-                        "project_meta": meta, "final_targets": final_targets, 
-                        "ee_totals": ee_totals, "setup_ready": True
+                        "project_meta": ui_meta, "financial_meta": financial_meta,
+                        "final_targets": final_targets, "ee_totals": ee_totals, 
+                        "setup_ready": True
                     })
                     
                     summary_prompt = (
-                        f"DATA LOADED:\n- Month: {meta['month_str']}\n- Targets: {json.dumps(raw_ee_targets, ensure_ascii=False)}\n"
+                        f"DATA LOADED:\n"
+                        f"- Month: {ui_meta['month_str']}\n"
+                        f"- Dynamic Wage (from Excel): {real_wage}€/h\n"
+                        f"- Dynamic Cap (from Excel): {real_cap}€\n"
+                        f"- Targets: {json.dumps(raw_ee_targets, ensure_ascii=False)}\n"
                         f"- Deliverables: {list(final_targets.keys())}\n"
-                        f"INSTRUCTION: Summarize the split and ask for YES to generate."
+                        f"INSTRUCTION: Summarize the split and mention the Dynamic Wage and Cap from the excel. Ask for YES to generate."
                     )
                     
                     client = OpenRouterClient(api_key)
@@ -122,22 +132,20 @@ def render_timesheet_tool():
                     try:
                         with st.spinner("Generating files in memory..."):
                             meta = st.session_state.project_meta
+                            fin_meta = st.session_state.financial_meta
                             month_num = MONTH_NAME_TO_NUM.get(meta['month_english'].upper(), 1)
                             
-                            engine = TimesheetEngine(wage=meta['wage'], year=int(meta['year']), month=month_num)
+                            # Use dynamic wage from excel
+                            engine = TimesheetEngine(wage=fin_meta['wage'], year=int(meta['year']), month=month_num)
                             schedule = engine.generate_distribution(st.session_state.final_targets)
                             
                             for entry in schedule:
                                 entry['Description'] = st.session_state.descriptions.get(entry['Deliverable'], "Ερευνητική εργασία")
                                 entry['Date'] = entry['Date'].strftime('%d/%m/%Y')
 
-                            # Use Exporter
                             exporter = GreekExcelExporter(schedule)
-                            
-                            # 1. Detailed Log Stream
                             detailed_stream = exporter.export_excel_stream()
                             
-                            # 2. Updated Original Stream
                             original_stream = io.BytesIO(st.session_state.excel_bytes)
                             updated_stream = exporter.update_budget_excel_stream(
                                 original_stream, 
@@ -147,14 +155,11 @@ def render_timesheet_tool():
                             )
                             
                             st.success("✨ **Files Generated!** (In-Memory)")
-                            
                             col1, col2 = st.columns(2)
                             with col1:
-                                st.download_button("📥 Detailed Log", detailed_stream, 
-                                                 file_name=f"Detailed_{meta['month_english']}.xlsx")
+                                st.download_button("📥 Detailed Log", detailed_stream, file_name=f"Detailed_{meta['month_english']}.xlsx")
                             with col2:
-                                st.download_button("📥 Updated Budget", updated_stream, 
-                                                 file_name=f"Updated_{st.session_state.excel_name}")
+                                st.download_button("📥 Updated Budget", updated_stream, file_name=f"Updated_{st.session_state.excel_name}")
                                 
                     except Exception as e:
                         st.error(f"Generation Failed: {e}")
